@@ -1,15 +1,21 @@
 <launch>
-
+	<!-- ########### play bag file ############# -->
 	<node pkg="rosbag" type="play" name="player" args="--clock /home/el2425/catkin_ws2/src/bagfiles/short_with_circles.bag"/>
 
+	<!-- ############# run gps convert, currently just used to label trimble data with frame_id ################ -->
 	<node pkg="wheel_odom" type="gps_convert.py" name="gps_convert" output="screen">
           <rosparam param="/gps_cov">[0.5, 0.0, 0.0,
                                       0.0, 0.5, 0.0,
                                       0.0, 0.0, 0.5]</rosparam>
 	</node>
+	<!-- #############  ############### -->
 
+
+	<!-- ############# launch gps_navsat node, to transform raw gps to local frame ############### -->
 	<include file="$(find wheel_odom)/launch/gps_navsat.launch"/>
 
+
+	<!-- ############## run wheel odometry who uses imu.yaw as heading ############### -->
 	<node pkg="wheel_odom" type="wheel_odometry.py" name="wheel_odometry" output="screen">
           <!-- x y z theta_x, theta_y, theta_z -->
           <rosparam param="/wheel_pose_cov">[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -26,8 +32,13 @@
                                              0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 
                                              0.0, 0.0, 0.0, 0.0, 0.0, 0.04]</rosparam>
 	</node>
+	<!-- #############  ############### -->
 
+
+	<!-- ############# run and configure main localization node ############### -->
   	<node pkg="robot_localization" type="ekf_localization_node" name="ekf_localization" clear_params="true" output="screen">
+	
+	<!-- ############# basic parameters ############### -->
 	<param name="frequency" value="10"/>
 	<param name="sensor_timeout" value="1.0"/>
 	<param name="two_d_mode" value="true"/>
@@ -49,7 +60,8 @@
 	<param name="base_link_frame" value="base_link"/>
 	<param name="base_link_frame" value="base_link"/>
 
-
+	
+	<!-- ############# parameters about odom0, which is wheel odometry here ############### -->
 	<param name="odom0" value="/odom_test"/>
 	
         <!-- values is x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. -->
@@ -68,7 +80,8 @@
 <!--	<param name="odom0_pose_rejection_threshold" value="5"/>
 	<param name="odom0_twist_rejection_threshold" value="1"/> -->
 
-<!--    this is gps      -->
+	<!-- ############# parameters of odom0, which is transformed gps data here ############### -->
+        <!--    this is gps      -->
 	<param name="odom1" value="/odometry/gps"/>
 
         <rosparam param="odom1_config">[true,  true,  false,
@@ -76,10 +89,11 @@
                                         false, false, false,
                                         false, false, false,
                                         false, false, false]</rosparam> 
-	<param name="odom1_pose_rejection_threshold" value="3" /> 
+	<param name="odom1_pose_rejection_threshold" value="3.0" /> 
 	<param name="odom1_differential" value="false"/>  
 
 
+	<!-- ############# parameters of imu0 ############### -->
 	<param name="imu0" value="communication/dspace/imu"/> 
 
 <!-- values is x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. -->
@@ -134,6 +148,9 @@
 
     </node>
   
+    <!-- ############# run the odometry plotting node ############### -->
+	<!-- ### OBS only topics of odometries who share the same frame can be corretly plotted together  ### -->
+
     <node pkg="gps_show" type="gps_show.py" name="gps_show" output="screen" >
       <rosparam param="/odom_topic_list">['/odometry/filtered',
                                           '/odometry/gps']</rosparam>
