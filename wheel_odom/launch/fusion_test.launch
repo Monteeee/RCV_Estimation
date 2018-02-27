@@ -1,0 +1,143 @@
+<launch>
+
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/el2425/catkin_ws2/src/bagfiles/short_with_circles.bag"/>
+
+	<node pkg="wheel_odom" type="gps_convert.py" name="gps_convert" output="screen">
+          <rosparam param="/gps_cov">[0.5, 0.0, 0.0,
+                                      0.0, 0.5, 0.0,
+                                      0.0, 0.0, 0.5]</rosparam>
+	</node>
+
+	<include file="$(find wheel_odom)/launch/gps_navsat.launch"/>
+
+	<node pkg="wheel_odom" type="wheel_odometry.py" name="wheel_odometry" output="screen">
+          <!-- x y z theta_x, theta_y, theta_z -->
+          <rosparam param="/wheel_pose_cov">[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.5, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.9]</rosparam>
+
+          <rosparam param="/wheel_twist_cov">[0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                             0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 
+                                             0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 
+                                             0.0, 0.0, 0.0, 0.1, 0.0, 0.0,
+                                             0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 
+                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.04]</rosparam>
+	</node>
+
+  	<node pkg="robot_localization" type="ekf_localization_node" name="ekf_localization" clear_params="true" output="screen">
+	<param name="frequency" value="10"/>
+	<param name="sensor_timeout" value="1.0"/>
+	<param name="two_d_mode" value="true"/>
+	<param name="transform_time_offset" value="0.0"/>
+	<param name="transform_timeout" value="0.0"/>
+	<param name="print_diagnostics" value="true"/>
+	<param name="debug" value="false"/>
+	<param name="debug_out_file" value="~/file.txt"/>
+
+	<param name="publish_tf" value="false"/>
+	<param name="publish_acceleration" value="false"/>
+	<param name="map_frame" value="map"/>
+	<param name="odom_frame" value="odom"/>
+	<param name="world_frame" value="odom"/>
+	<param name="base_link_frame" value="base_link"/>
+	<param name="base_link_frame" value="base_link"/>
+	<param name="base_link_frame" value="base_link"/>
+	<param name="base_link_frame" value="base_link"/>
+	<param name="base_link_frame" value="base_link"/>
+	<param name="base_link_frame" value="base_link"/>
+
+
+	<param name="odom0" value="/odom_test"/>
+	
+        <!-- values is x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. -->
+
+        <rosparam param="odom0_config">[true,  true,  false,
+                                        false, false, false,
+                                        true,  true, false,
+                                        false, false, true,
+                                        false, false, false]</rosparam>
+	
+	<param name="odom0_queue_size" value="2"/>
+	<param name="odom_nodelay" value="false"/>
+	<param name="odom0_differential" value="true"/>
+	<param name="odom0_relative" value="false"/>
+
+<!--	<param name="odom0_pose_rejection_threshold" value="5"/>
+	<param name="odom0_twist_rejection_threshold" value="1"/> -->
+
+<!--    this is gps      -->
+	<param name="odom1" value="/odometry/gps"/>
+
+        <rosparam param="odom1_config">[true,  true,  false,
+                                        false, false, false,
+                                        false, false, false,
+                                        false, false, false,
+                                        false, false, false]</rosparam> 
+	<param name="odom1_pose_rejection_threshold" value="3" /> 
+	<param name="odom1_differential" value="false"/>  
+
+
+	<param name="imu0" value="communication/dspace/imu"/> 
+
+<!-- values is x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. -->
+        <rosparam param="imu0_config">[false,  false,  false,
+                                        false, false, true,
+                                        false, false, false,
+                                        false, false, true,
+                                        false, false, false]</rosparam>
+	
+	<param name="imu0_nodelay" value="false"/>
+	<param name="imu0_differential" value="false"/>
+	<param name="imu0_relative" value="true"/>
+	<param name="imu0_queue_size" value="5"/>
+<!--	<param name="imu0_pose_rejection_threshold" value="0.8"/> -->
+<!--	<param name="imu0_twist_rejection_threshold" value="0.8"/> -->
+<!--	<param name="imu0_linear_acceleration_rejection_threshold" value="0.8"/> -->
+
+
+<!-- process noise covariance x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az -->
+<rosparam param="process_noise_covariance">[0.5, 0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                                            0,    0.5, 0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                                            0,    0,    0.6, 0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                                            0,    0,    0,    0.5, 0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                                            0,    0,    0,    0,    0.5, 0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                                            0,    0,    0,    0,    0,    1.0, 0,     0,     0,    0,    0,    0,    0,    0,    0,
+                                            0,    0,    0,    0,    0,    0,    1.0,  0,     0,    0,    0,    0,    0,    0,    0,
+                                            0,    0,    0,    0,    0,    0,    0,     1.0,   0,    0,    0,    0,    0,    0,    0,
+                                            0,    0,    0,    0,    0,    0,    0,     0,     0.4,  0,    0,    0,    0,    0,    0,
+                                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0.05, 0,    0,    0,    0,    0,
+                                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0.05, 0,    0,    0,    0,
+                                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0.1, 0,    0,    0,
+                                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0.01, 0,    0,
+                                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0.01, 0,
+                                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0.015]</rosparam>
+
+<!-- initial noise covariance x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az -->
+<rosparam param="initial_estimate_covariance">[1e-9, 0,    0,    0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                               0,    1e-9, 0,    0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                               0,    0,    1e-9, 0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                               0,    0,    0,    1e-9, 0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                               0,    0,    0,    0,    1e-9, 0,    0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                               0,    0,    0,    0,    0,    1e-9, 0,    0,    0,    0,     0,     0,     0,    0,    0,
+                                               0,    0,    0,    0,    0,    0,    1e-9, 0,    0,    0,     0,     0,     0,    0,    0,
+                                               0,    0,    0,    0,    0,    0,    0,    1e-9, 0,    0,     0,     0,     0,    0,    0,
+                                               0,    0,    0,    0,    0,    0,    0,    0,    1e-9, 0,     0,     0,     0,    0,    0,
+                                               0,    0,    0,    0,    0,    0,    0,    0,    0,    1e-9,  0,     0,     0,    0,    0,
+                                               0,    0,    0,    0,    0,    0,    0,    0,    0,    0,     1e-9,  0,     0,    0,    0,
+                                               0,    0,    0,    0,    0,    0,    0,    0,    0,    0,     0,     1e-9,  0,    0,    0,
+                                               0,    0,    0,    0,    0,    0,    0,    0,    0,    0,     0,     0,     1e-9, 0,    0,
+                                               0,    0,    0,    0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    1e-9, 0,
+                                               0,    0,    0,    0,    0,    0,    0,    0,    0,    0,     0,     0,     0,    0,    1e-9]</rosparam>
+
+    </node>
+  
+    <node pkg="gps_show" type="gps_show.py" name="gps_show" output="screen" >
+      <rosparam param="/odom_topic_list">['/odometry/filtered',
+                                          '/odometry/gps']</rosparam>
+    </node>
+
+
+</launch>
