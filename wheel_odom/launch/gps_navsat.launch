@@ -7,7 +7,7 @@
     <param name="yaw_offset" value="0"/>
 
     <remap from="/imu/data" to="/communication/dspace/imu" />
-    <remap from="/gps/fix" to="/gps_fix" />
+    <remap from="/gps/fix" to="/xsens_gps_fix" />
     <remap from="/odometry/filtered" to="/odometry/filtered" />
 
   </node>

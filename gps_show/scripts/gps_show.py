@@ -37,7 +37,18 @@ def listener(topic_list, N):
 	data_list2 = [[] for x in xrange(N)]
 	count = 0
 	
-	print("red circle for starting point, blue triangle for current position")
+	print(" ###############################################")
+	print(" -- red circle for starting point")
+	print(" -- blue circle for first target ")
+	print(" -- blue up triangle for 2nd target ")
+	print(" -- blue square for 3rd target ")
+	print(" -- blue pentagon for 4th target ")
+	print(" -- for more lines please check the code for info")
+	print(" ############################################### ")
+	
+	
+	marker_list = ['o', '^', 's', 'p', '8', 'h', 'x']
+	color_list  = ['k', 'r', 'b', 'g', 'y', 'c', 'm']
 	
 	while(True):
 		for k in range(N):
@@ -58,9 +69,9 @@ def listener(topic_list, N):
 			# ax2.set_ylim(-50, 300)
 			
 			for k in range(N):
-				ax2.plot(data_list1[k], data_list2[k], lw=1.0)
+				ax2.plot(data_list1[k], data_list2[k], color=color_list[k], lw=1.0)
 				ax2.plot(data_list1[k][0], data_list2[k][0], marker='o', markerfacecolor='r', markersize=10.0)
-				ax2.plot(data_list1[k][-1], data_list2[k][-1], marker='^', markerfacecolor='b', markersize=10.0)
+				ax2.plot(data_list1[k][-1], data_list2[k][-1], marker=marker_list[k], markerfacecolor='b', markersize=10.0)
 			
 			plt.ion()
 			plt.show()

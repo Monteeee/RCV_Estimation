@@ -3,7 +3,7 @@
 	<node pkg="rosbag" type="play" name="player" args="--clock /home/el2425/catkin_ws2/src/bagfiles/short_with_circles.bag"/>
 
 	<!-- ############# run gps convert, currently just used to label trimble data with frame_id ################ -->
-	<node pkg="wheel_odom" type="gps_convert.py" name="gps_convert" output="screen">
+	<node pkg="wheel_odom" type="xsens_gps_convert.py" name="xsens_gps_convert" output="screen">
           <rosparam param="/gps_cov">[0.5, 0.0, 0.0,
                                       0.0, 0.5, 0.0,
                                       0.0, 0.0, 0.5]</rosparam>
@@ -11,8 +11,26 @@
 	<!-- #############  ############### -->
 
 
+	<!-- ############# run gps convert, currently just used to label trimble data with frame_id ################ -->
+	<node pkg="wheel_odom" type="gps_convert.py" name="trimble_gps_convert" output="screen"/>
+	<!-- #############  ############### -->
+
+
 	<!-- ############# launch gps_navsat node, to transform raw gps to local frame ############### -->
 	<include file="$(find wheel_odom)/launch/gps_navsat.launch"/>
+
+	<node pkg="robot_localization" type="navsat_transform_node" name="navsat_transform_node2" respawn="true">
+
+	    <param name="magnetic_declination_radians" value="0"/>
+
+	    <param name="yaw_offset" value="0"/>
+
+	    <remap from="/imu/data" to="/communication/dspace/imu" />
+	    <remap from="/gps/fix" to="/trimble_gps_fix" />
+	    <remap from="/odometry/filtered" to="/odometry/filtered" />
+	    <remap from="/odometry/gps" to="/odometry/gps2" />
+
+  	</node>
 
 
 	<!-- ############## run wheel odometry who uses imu.yaw as heading ############### -->
@@ -89,7 +107,7 @@
                                         false, false, false,
                                         false, false, false,
                                         false, false, false]</rosparam> 
-	<param name="odom1_pose_rejection_threshold" value="3.0" /> 
+<!--	<param name="odom1_pose_rejection_threshold" value="3.0" />   -->
 	<param name="odom1_differential" value="false"/>  
 
 
@@ -153,7 +171,8 @@
 
     <node pkg="gps_show" type="gps_show.py" name="gps_show" output="screen" >
       <rosparam param="/odom_topic_list">['/odometry/filtered',
-                                          '/odometry/gps']</rosparam>
+                                          '/odometry/gps',
+                                          '/odometry/gps2']</rosparam>
     </node>
 
 
