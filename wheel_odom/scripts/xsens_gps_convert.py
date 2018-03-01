@@ -18,7 +18,7 @@ if __name__ == '__main__':
 	
 	rospy.init_node('xsens_gps_convert', anonymous=True)
 	
-	gps_cov = rospy.get_param("/gps_cov")
+	gps_cov = rospy.get_param("/xsens_gps_cov")
 	# new_topic_name = rospy.get_param("new_gps_topic_name")
 	
 	sub_gps = rospy.Subscriber("/communication/dspace/xsens_navsat", NavSatFix, callback, queue_size=1)

@@ -19,7 +19,7 @@ if __name__ == '__main__':
 	
 	rospy.init_node("trimble_gps_convert", anonymous=True)
 	
-	gps_cov = rospy.get_param("/gps_cov")
+	gps_cov = rospy.get_param("/trimble_gps_cov")
 	# new_topic_name = rospy.get_param("/new_gps_topic_name")
 	# print "--- new name"
 	# print new_topic_name 

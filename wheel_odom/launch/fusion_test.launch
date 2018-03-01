@@ -1,18 +1,22 @@
 <launch>
 	<!-- ########### play bag file ############# -->
-	<node pkg="rosbag" type="play" name="player" args="--clock /home/el2425/catkin_ws2/src/bagfiles/short_with_circles.bag"/>
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/el2425/catkin_ws2/src/bagfiles/long_with_stop.bag"/>
 
 	<!-- ############# run gps convert, currently just used to label trimble data with frame_id ################ -->
 	<node pkg="wheel_odom" type="xsens_gps_convert.py" name="xsens_gps_convert" output="screen">
-          <rosparam param="/gps_cov">[0.5, 0.0, 0.0,
-                                      0.0, 0.5, 0.0,
-                                      0.0, 0.0, 0.5]</rosparam>
-	</node>
+          <rosparam param="/xsens_gps_cov">[0.5, 0.0, 0.0,
+                                            0.0, 0.5, 0.0,
+                                            0.0, 0.0, 0.5]</rosparam>
+	</node> 
 	<!-- #############  ############### -->
 
 
 	<!-- ############# run gps convert, currently just used to label trimble data with frame_id ################ -->
-	<node pkg="wheel_odom" type="gps_convert.py" name="trimble_gps_convert" output="screen"/>
+	<node pkg="wheel_odom" type="gps_convert.py" name="trimble_gps_convert" output="screen">
+          <rosparam param="/trimble_gps_cov">[0.5, 0.0, 0.0,
+                                              0.0, 0.5, 0.0,
+                                              0.0, 0.0, 0.5]</rosparam>
+	</node>
 	<!-- #############  ############### -->
 
 
@@ -172,7 +176,8 @@
     <node pkg="gps_show" type="gps_show.py" name="gps_show" output="screen" >
       <rosparam param="/odom_topic_list">['/odometry/filtered',
                                           '/odometry/gps',
-                                          '/odometry/gps2']</rosparam>
+                                          '/odometry/gps2',
+                                          '/communication/dspace/rcv_odom']</rosparam>
     </node>
 
 
