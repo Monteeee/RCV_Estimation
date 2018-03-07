@@ -10,8 +10,14 @@ def callback(msg):
 	
 	temp = msg
 	temp.header.frame_id = 'trimble'
+	# UNKNOWN = 0 APPROXIMATED = 1 DIAGONAL_KNOWN = 2 KNOWN = 3
+	
+	### something could be done here, based on kinematically impossible 
+	### behavior of GPS position signal, increase the covariance size 
+	### of the GPS
+	
 	temp.position_covariance = gps_cov
-	temp.position_covariance_type = 3
+	temp.position_covariance_type = 1
 	pub_gps.publish(temp)
 
 

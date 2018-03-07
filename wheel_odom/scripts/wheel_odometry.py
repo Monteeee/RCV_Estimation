@@ -14,7 +14,12 @@ import time
 from tf.transformations import quaternion_from_euler
 from tf.transformations import euler_from_quaternion
 from matplotlib import pyplot as plt
+from scipy.optimize import curve_fit
+from scipy.misc import derivative
+from numpy import linalg as LA
 
+def reg_func(x, a, b, c, d):
+	return a * np.power(x, 3) + b * np.power(x, 2) + c * x + d
 
 
 class wheel_odom_conv:
@@ -30,7 +35,10 @@ class wheel_odom_conv:
 		self.rr_str = 0
 		self.avg_vel = 0
 		self.curv = 0
-		self.msg_state = [0, 0, 0, 0, 0, 0, 0]
+		self.msg_state = [0, 0, 0, 0, 0, 0]
+		
+		self.point_x = list()
+		self.point_y = list()
 		
 		# odometry info ---------------------
 		self.last_t = time.time()
@@ -39,6 +47,8 @@ class wheel_odom_conv:
 		self.last_omega = 0
 		self.last_v = 0
 		self.yaw_global = 0
+		self.yaw_old = 0
+		self.angle_buffer = []
 		self.euler = []
 		
 		self.time_stamp = Time()
@@ -50,8 +60,9 @@ class wheel_odom_conv:
 		self.sub_rl_str_ = rospy.Subscriber("/communication/dspace/rlwheel_steering", Float32, self.cb3, queue_size=1)
 		self.sub_rr_str_ = rospy.Subscriber("/communication/dspace/rrwheel_steering", Float32, self.cb4, queue_size=1)
 		self.sub_avg_vel_ = rospy.Subscriber("/communication/dspace/avg_speed", Float32, self.cb5, queue_size=1)
-		self.sub_curv = rospy.Subscriber("/communication/dspace/curvature", Float32, self.cb6, queue_size=1)
-		self.sub_time = rospy.Subscriber("/communication/dspace/imu", Imu, self.cb7, queue_size=1)
+		# self.sub_curv = rospy.Subscriber("/communication/dspace/curvature", Float32, self.cb6, queue_size=1)
+		self.sub_yaw = rospy.Subscriber("/communication/dspace/imu", Imu, self.cb6, queue_size=1)
+		self.sub_est = rospy.Subscriber("/odometry/filtered", Odometry, self.call_back_est, queue_size=1)
 		
 		self.pub_xyyaw_test = rospy.Publisher("/xyyaw_test", Point, queue_size=1)
 		self.pub_odom_test = rospy.Publisher("/odom_test", Odometry, queue_size=1)
@@ -64,8 +75,6 @@ class wheel_odom_conv:
 		
 		# for some visualization --------------------
 		self.sample_count = 10
-		self.point_x = list()
-		self.point_y = list()
 		
 		# for parameter tuning
 		self.pose_cov = rospy.get_param("/wheel_pose_cov")
@@ -75,7 +84,6 @@ class wheel_odom_conv:
 		
 		a = 1.0
 		b = 1.0
-		
 		
 		theta_f=(theta_fl+theta_fr)/2.0;
 		theta_r=(theta_rl+theta_rr)/2.0;
@@ -118,59 +126,146 @@ class wheel_odom_conv:
 			
 			t_now = time.time()
 			
-			output = self.beta_curv_trans(theta_fl, theta_fr, theta_rl, theta_rr, v)
-			current_beta = output[0]
-			current_K = output[1]
+			# output = self.beta_curv_trans(theta_fl, theta_fr, theta_rl, theta_rr, v)
+			# current_beta = output[0]
+			# current_K = output[1]
 			
-			omega = current_K * v
+			# omega = current_K * v
 			
 			# print "curvature" + str(current_K)	
 			
-			yaw_old = self.yaw_global
+			# yaw_old = self.yaw_global
 					
-			self.yaw_global = self.yaw_global + (omega + self.last_omega)/2.0 * abs(t_now - self.last_t) 
+			# self.yaw_global = self.yaw_global + (omega + self.last_omega)/2.0 * abs(t_now - self.last_t) 
 			
 			# print "yaw_old " + str(yaw_old)
 			# print "yaw_global " + str(self.yaw_global)
 
 			
-			self.yaw_global = self.yaw_global + (current_beta) # not sure
+			# self.yaw_global = self.yaw_global + (current_beta) # not sure
 			
 			# print "current_beta " + str(current_beta)
-			self.yaw_global = self.yaw_global % 6.28318
+			# self.yaw_global = self.yaw_global % 6.28318
 			
 			# print "yaw_global " + str(self.yaw_global)
 			
-			if abs(yaw_old - self.yaw_global) < 3.14159:
-				yaw_avg = (yaw_old + self.yaw_global) / 2.0
+			#if abs(yaw_old - self.yaw_global) < 3.14159:
+				#yaw_avg = (yaw_old + self.yaw_global) / 2.0
+			#else:
+				#yaw_avg = self.yaw_global
+			
+			# ########### try regression for heading ############
+			
+			yaw_odom = self.imu_yaw
+			yaw_reg = self.yaw_global
+			if len(self.point_x) > 50:
+				
+				# try:
+				reg_x = np.array(self.point_x[-10:])
+				reg_y = np.array(self.point_y[-10:])
+				
+				popt, pcov = curve_fit(reg_func, reg_x, reg_y)
+				
+				error = LA.norm(reg_func(reg_x, *popt) - reg_y)
+				
+				if error < 0.8:
+					g = lambda x: popt[0]*x**3 + popt[1]*x**2 + popt[2]*x + popt[3]
+					dx = derivative(g, reg_x[-1])
+					
+					angle_temp = atan(dx)
+					
+					# ####### replace this with ending point vector
+					vec_1 = np.array([cos(angle_temp), sin(angle_temp)])
+					# vec_2 = np.array([-cos(angle_temp), -sin(angle_temp)])
+					vec_3 = np.array([reg_x[-1]-reg_x[-2], reg_y[-1]-reg_y[-2]])
+					
+					inn1 = np.inner(vec_1, vec_3)
+					# inn2 = np.inner(vec2, vec3)
+					if inn1 > 0:
+						yaw_reg = angle_temp
+					else:
+						yaw_reg = angle_temp + 3.14159265359
+						
+					if abs( np.fmod(yaw_reg - self.yaw_global, 6.28318) ) > 0.5:
+						
+						print("no regression" + str(yaw_reg) + "  " + str(self.yaw_global) + "  " + 
+								str(abs( np.fmod(yaw_reg - self.yaw_global, 6.28318) )) + " error " + str(error) )
+						self.angle_buffer.append(yaw_reg)
+						yaw_reg = self.yaw_global + (self.imu_yaw - self.yaw_old)
+						
+						if len(self.angle_buffer) >= 10:
+							if np.std(self.angle_buffer) < 0.01:
+								print("changing from " + str(yaw_reg) + " to " + str(np.mean(self.angle_buffer)))
+								yaw_reg = np.mean(self.angle_buffer)
+								self.angle_buffer = []
+							else:
+								self.angle_buffer = []
+					
+					#if abs(angle_temp - self.yaw_global) < 0.5:
+						#yaw_reg = angle_temp
+					#elif abs(angle_temp + 3.1415926 - self.yaw_global ) < 0.5:
+						#yaw_reg = angle_temp + 3.1415926
+					#elif abs(angle_temp - 3.1415926 - self.yaw_global ) < 0.5:
+						#yaw_reg = angle_temp - 3.1415926
+					#elif abs(angle_temp + 3.1415926 * 2.0 - self.yaw_global ) < 0.5:
+						#yaw_reg = angle_temp + 3.1415926 * 2.0
+					#elif abs(angle_temp - 3.1415926 * 2.0 - self.yaw_global ) < 0.5:
+						#yaw_reg = angle_temp - 3.1415926 * 2.0	
+					#else:
+						#yaw_reg = self.yaw_global + (self.imu_yaw - self.yaw_old)
+						#print("no regression" + str(angle_temp) + "  " + str(self.yaw_global) )
+					
+					#if reg_x[0] < reg_x[-1]:
+						#yaw_reg = ( atan(dx) ) # % 6.28318
+					#else: 
+						#yaw_reg = ( atan(dx) + 3.14159265359 ) # % 6.28318
+				else:
+					# print("error" + str(error))
+					yaw_reg = self.yaw_global + (self.imu_yaw - self.yaw_old)	
+					# print("error" + str(error))
+				
+				#if abs(yaw_reg - self.yaw_global) > 2.0 and abs(yaw_reg - self.yaw_global) < 6.0:
+					#print("time " + str(len(self.point_x)) + " jump " + str(yaw_reg) + " " + str(self.yaw_global) + " error " + str(error))
+					#yaw_reg = self.yaw_global + (self.imu_yaw - self.yaw_old)
+					
+				yaw_odom = yaw_reg % 6.28318
+				
+				# if abs(yaw_odom - self.yaw_global) > 0.5:
+				# print("jump "+ str(abs(yaw_odom - self.yaw_global)))
+				
+				# except:
+				# print("failed fitting")
 			else:
-				yaw_avg = self.yaw_global
+				yaw_reg = self.imu_yaw
+			
+			self.yaw_old = self.imu_yaw
+			self.yaw_global = yaw_reg
 			
 			tvx = ( sin( (theta_fl + theta_fr)/2.0 ) + sin( (theta_rl + theta_rr)/2.0 ) )/2.0 * (v + self.last_v)/2.0
 			tvy =  ( cos( (theta_fl + theta_fr)/2.0 ) + cos( (theta_rl + theta_rr)/2.0 ) )/2.0 * (v + self.last_v)/2.0
 			
-			vx = (tvx*cos(self.imu_yaw) + tvy*cos(self.imu_yaw+3.14159265359/2.0) )
-			vy = (tvx*sin(self.imu_yaw) + tvy*sin(self.imu_yaw+3.14159265359/2.0) )
+			vx = (tvx*cos(yaw_odom) + tvy*cos(yaw_odom) )
+			vy = (tvx*sin(yaw_odom) + tvy*sin(yaw_odom) )
 			
 			self.x_global = self.x_global + vx*abs(t_now - self.last_t)
 			self.y_global = self.y_global + vy*abs(t_now - self.last_t)
 			
 			self.last_t = time.time()
-			self.last_omega = omega
+			# self.last_omega = omega
 			self.last_v = v
 			
-			self.xyyaw.x = self.x_global
-			self.xyyaw.y = self.y_global
-			self.xyyaw.z = self.yaw_global
+			# self.xyyaw.x = self.x_global
+			# self.xyyaw.y = self.y_global
+			# self.xyyaw.z = self.yaw_global
 			
-			self.pub_xyyaw_test.publish(self.xyyaw)
-			
+			# self.pub_xyyaw_test.publish(self.xyyaw)
+				
 			# publish odometry message 
 			self.odom_msg.header.stamp = self.time_stamp
 			self.odom_msg.header.frame_id = "odom"
 			self.odom_msg.child_frame_id = "base_link"
 			
-			quad_temp = quaternion_from_euler(0.0, 0.0, self.yaw_global)
+			quad_temp = quaternion_from_euler(0.0, 0.0, yaw_odom)
 			self.odom_msg.pose.pose.orientation.x = quad_temp[0]
 			self.odom_msg.pose.pose.orientation.y = quad_temp[1]
 			self.odom_msg.pose.pose.orientation.z = quad_temp[2]
@@ -186,7 +281,7 @@ class wheel_odom_conv:
 			
 			self.odom_msg.twist.twist.angular.x = 0.0
 			self.odom_msg.twist.twist.angular.y = 0.0
-			self.odom_msg.twist.twist.angular.z = omega
+			self.odom_msg.twist.twist.angular.z = 0.0
 			
 			# x y z theta_x, theta_y, theta_z
 			#self.odom_msg.pose.covariance = [5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -225,7 +320,7 @@ class wheel_odom_conv:
 		self.fl_str = msg.data
 		self.msg_state[0] = 1
 		
-		if sum(self.msg_state) < 7:
+		if sum(self.msg_state) < 6:
 			return
 		else:
 			self.compute_odom()
@@ -237,7 +332,7 @@ class wheel_odom_conv:
 		self.fr_str = msg.data
 		self.msg_state[1] = 1
 		
-		if sum(self.msg_state) < 7:
+		if sum(self.msg_state) < 6:
 			return
 		else:
 			self.compute_odom()
@@ -249,7 +344,7 @@ class wheel_odom_conv:
 		self.rl_str = msg.data
 		self.msg_state[2] = 1
 		
-		if sum(self.msg_state) < 7:
+		if sum(self.msg_state) < 6:
 			return
 		else:
 			self.compute_odom()
@@ -261,7 +356,7 @@ class wheel_odom_conv:
 		self.rr_str = msg.data
 		self.msg_state[3] = 1
 		
-		if sum(self.msg_state) < 7:
+		if sum(self.msg_state) < 6:
 			return
 		else:
 			self.compute_odom()
@@ -273,24 +368,12 @@ class wheel_odom_conv:
 		self.avg_vel = msg.data
 		self.msg_state[4] = 1
 		
-		if sum(self.msg_state) < 7:
+		if sum(self.msg_state) < 6:
 			return
 		else:
 			self.compute_odom()
 	
 	def cb6(self, msg):
-		
-		# print "rec 6"
-		
-		self.curv = msg.data
-		self.msg_state[5] = 1
-	
-		if sum(self.msg_state) < 7:
-			return
-		else:
-			self.compute_odom()
-	
-	def cb7(self, msg):
 		self.time_stamp = msg.header.stamp
 		quaternion = [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
 		
@@ -302,14 +385,20 @@ class wheel_odom_conv:
 		
 		self.imu_yaw = euler[2]
 		
-		self.msg_state[6] = 1
-		if sum(self.msg_state) < 7:
+		self.msg_state[5] = 1
+		if sum(self.msg_state) < 6:
 			return
 		else:
 			self.compute_odom()
 	
 	def callback(self, msg):
 		wheel_data = msg.data
+		
+		
+	def call_back_est(self, msg):
+		self.point_x.append(msg.pose.pose.position.x)
+		self.point_y.append(msg.pose.pose.position.y)
+		
 		
 	def compute_odom(self):
 		

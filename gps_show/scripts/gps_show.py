@@ -10,6 +10,7 @@ from PIL import Image
 from math import floor
 import pickle
 from tf.transformations import euler_from_quaternion
+from math import sin, cos, sqrt
 
 #def callback(msg):
 
@@ -107,26 +108,54 @@ def listener(topic_list, N):
 				
 				fig = plt.figure(1)
 				ax2 = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-				ax2.set_xlim(-200, 50)
-				ax2.set_ylim(-50, 200)
+				# ax2.set_xlim(-200, 50)
+				# ax2.set_ylim(-50, 200)
 				# print img.shape()
 				
-				scale = 250.0
-				left = -199.0
-				right = left + scale
-				bottom = -45
-				top =  bottom + floor((height/width) * scale)
+				# scale = 250.0
+				# left = -199.0
+				# right = left + scale
+				# bottom = -45
+				# top =  bottom + floor((height/width) * scale)
 				
-				ax2.imshow(img, zorder=0, extent=[left, right, bottom, top])
+				# ax2.imshow(img, zorder=0, extent=[left, right, bottom, top])
 				
 				for k in range(N):
 					ax2.plot(data_list1[k], data_list2[k], color=color_list[k], lw=1.0)
 					ax2.plot(data_list1[k][0], data_list2[k][0], marker='o', markerfacecolor='r', markersize=10.0)
 					ax2.plot(data_list1[k][-1], data_list2[k][-1], marker=marker_list[k], markerfacecolor='b', markersize=10.0)
+					arrow_l = sqrt(abs(data_list1[k][0] - data_list1[k][-1])**2 +  abs(data_list2[k][0] - data_list2[k][-1])**2)/10.0
+					if k == 0:   # estimated
+						arrow_x = arrow_l * cos(data_list6[k][-1] + 3.14159265359/2.0)
+						arrow_y = arrow_l * sin(data_list6[k][-1] + 3.14159265359/2.0)
+						ax2.arrow(data_list1[0][-1], data_list2[0][-1], arrow_x, arrow_y, head_width=arrow_l/3.0, head_length=arrow_l/10.0, fc='k', ec='k')
+						
+						speed = sqrt(data_list3[k][-1]**2 + data_list4[k][-1]**2)
+						arrow_x = arrow_l * data_list3[k][-1] / speed
+						arrow_y = arrow_l * data_list4[k][-1] / speed
+						ax2.arrow(data_list1[0][-1], data_list2[0][-1], arrow_x, arrow_y, head_width=arrow_l/3.0, head_length=arrow_l/10.0, fc='y', ec='y')
+						
+						
+					elif k == 2:   # regression yaw
+						arrow_x = arrow_l * cos(data_list6[k][-1])
+						arrow_y = arrow_l * sin(data_list6[k][-1])
+						ax2.arrow(data_list1[0][-1], data_list2[0][-1], arrow_x, arrow_y, head_width=arrow_l/3.0, head_length=arrow_l/10.0, fc='b', ec='b')
+					elif k == 3:   # imu yaw
+						arrow_x = arrow_l * cos(data_list6[k][-1])
+						arrow_y = arrow_l * sin(data_list6[k][-1])
+						ax2.arrow(data_list1[0][-1], data_list2[0][-1], arrow_x, arrow_y, head_width=arrow_l/3.0, head_length=arrow_l/10.0, fc='r', ec='r')
+					
+					#print "angle" + str(data_list6[k][-1])
+					#print "cos,   sin"
+					#print cos(data_list6[k][-1]), sin(data_list6[k][-1])
+					#print "start, end"
+					#print data_list1[k][-1], data_list2[k][-1], arrow_x, arrow_y
+					
+					
 
-				# plt.ion()
-				# plt.show()
-				# plt.pause(0.1)
+				plt.ion()
+				plt.show()
+				plt.pause(0.1)
 				if ending:
 					break
 				else:
