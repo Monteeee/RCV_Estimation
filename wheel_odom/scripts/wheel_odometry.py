@@ -39,9 +39,13 @@ class wheel_odom_conv:
 		
 		self.point_x = list()
 		self.point_y = list()
+		self.est_yaw = 0
+		self.yaw_first = 0
+		self.count = 30
 		
 		# odometry info ---------------------
 		self.last_t = time.time()
+		self.last_t2 = time.time()
 		self.x_global = 0
 		self.y_global = 0
 		self.last_omega = 0
@@ -124,8 +128,6 @@ class wheel_odom_conv:
 		else:
 			# print "really computing"
 			
-			t_now = time.time()
-			
 			# output = self.beta_curv_trans(theta_fl, theta_fr, theta_rl, theta_rr, v)
 			# current_beta = output[0]
 			# current_K = output[1]
@@ -156,85 +158,66 @@ class wheel_odom_conv:
 			
 			# ########### try regression for heading ############
 			
-			yaw_odom = self.imu_yaw
+			if len(self.point_x) < 2:
+				yaw_odom = self.imu_yaw
+			else:
+				yaw_odom = self.est_yaw
+				
 			yaw_reg = self.yaw_global
-			if len(self.point_x) > 50:
+			if len(self.point_x) > 100:
 				
 				# try:
-				reg_x = np.array(self.point_x[-10:])
-				reg_y = np.array(self.point_y[-10:])
+				reg_x = np.array(self.point_x[-15:])
+				reg_y = np.array(self.point_y[-15:])
+
+				t_series = np.linspace(0.0, 10.0, len(reg_x))
+			
+				po1, pc1 = curve_fit(reg_func, t_series, reg_x)
+				po2, pc2 = curve_fit(reg_func, t_series, reg_y)
 				
-				popt, pcov = curve_fit(reg_func, reg_x, reg_y)
+				error = sqrt(LA.norm(reg_func(t_series, *po2) - reg_y)**2 + 
+								LA.norm(reg_func(t_series, *po1) - reg_x)**2)
+				# #### this error might need to be normalized #####				
+								
 				
-				error = LA.norm(reg_func(reg_x, *popt) - reg_y)
+				print str(error)
 				
-				if error < 0.8:
-					g = lambda x: popt[0]*x**3 + popt[1]*x**2 + popt[2]*x + popt[3]
-					dx = derivative(g, reg_x[-1])
+				if error < 0.3 and self.count >= 5:
 					
-					angle_temp = atan(dx)
+					g1 = lambda x: po1[0]*x**3 + po1[1]*x**2 + po1[2]*x + po1[3]
+					g2 = lambda x: po2[0]*x**3 + po2[1]*x**2 + po2[2]*x + po2[3]
 					
-					# ####### replace this with ending point vector
-					vec_1 = np.array([cos(angle_temp), sin(angle_temp)])
-					# vec_2 = np.array([-cos(angle_temp), -sin(angle_temp)])
-					vec_3 = np.array([reg_x[-1]-reg_x[-2], reg_y[-1]-reg_y[-2]])
+					dx = derivative(g1, t_series[-2])
+					dy = derivative(g2, t_series[-2])
 					
-					inn1 = np.inner(vec_1, vec_3)
-					# inn2 = np.inner(vec2, vec3)
-					if inn1 > 0:
-						yaw_reg = angle_temp
-					else:
-						yaw_reg = angle_temp + 3.14159265359
+					yaw_reg = atan2(dy, dx)
+					
+					#if abs( np.fmod(yaw_reg - self.yaw_global, 6.28318) ) > 1.0:
 						
-					if abs( np.fmod(yaw_reg - self.yaw_global, 6.28318) ) > 0.5:
-						
-						print("no regression" + str(yaw_reg) + "  " + str(self.yaw_global) + "  " + 
-								str(abs( np.fmod(yaw_reg - self.yaw_global, 6.28318) )) + " error " + str(error) )
-						self.angle_buffer.append(yaw_reg)
-						yaw_reg = self.yaw_global + (self.imu_yaw - self.yaw_old)
-						
-						if len(self.angle_buffer) >= 10:
-							if np.std(self.angle_buffer) < 0.01:
-								print("changing from " + str(yaw_reg) + " to " + str(np.mean(self.angle_buffer)))
-								yaw_reg = np.mean(self.angle_buffer)
-								self.angle_buffer = []
-							else:
-								self.angle_buffer = []
-					
-					#if abs(angle_temp - self.yaw_global) < 0.5:
-						#yaw_reg = angle_temp
-					#elif abs(angle_temp + 3.1415926 - self.yaw_global ) < 0.5:
-						#yaw_reg = angle_temp + 3.1415926
-					#elif abs(angle_temp - 3.1415926 - self.yaw_global ) < 0.5:
-						#yaw_reg = angle_temp - 3.1415926
-					#elif abs(angle_temp + 3.1415926 * 2.0 - self.yaw_global ) < 0.5:
-						#yaw_reg = angle_temp + 3.1415926 * 2.0
-					#elif abs(angle_temp - 3.1415926 * 2.0 - self.yaw_global ) < 0.5:
-						#yaw_reg = angle_temp - 3.1415926 * 2.0	
-					#else:
+						#print("no regression" + str(yaw_reg) + "  " + str(self.yaw_global) + "  " + 
+								#str(abs( np.fmod(yaw_reg - self.yaw_global, 6.28318) )) + " error " + str(error) )
+						#self.angle_buffer.append(yaw_reg)
 						#yaw_reg = self.yaw_global + (self.imu_yaw - self.yaw_old)
-						#print("no regression" + str(angle_temp) + "  " + str(self.yaw_global) )
+						
+						#if len(self.angle_buffer) >= 10:
+							#if np.std(self.angle_buffer) < 0.01:
+								#print("changing from " + str(yaw_reg) + " to " + str(np.mean(self.angle_buffer)))
+								#yaw_reg = np.mean(self.angle_buffer)
+								#self.angle_buffer = []
+							#else:
+								#self.angle_buffer = []
 					
-					#if reg_x[0] < reg_x[-1]:
-						#yaw_reg = ( atan(dx) ) # % 6.28318
-					#else: 
-						#yaw_reg = ( atan(dx) + 3.14159265359 ) # % 6.28318
+					self.count = 0
+					print("regression in")
 				else:
 					# print("error" + str(error))
 					yaw_reg = self.yaw_global + (self.imu_yaw - self.yaw_old)	
 					# print("error" + str(error))
-				
-				#if abs(yaw_reg - self.yaw_global) > 2.0 and abs(yaw_reg - self.yaw_global) < 6.0:
-					#print("time " + str(len(self.point_x)) + " jump " + str(yaw_reg) + " " + str(self.yaw_global) + " error " + str(error))
-					#yaw_reg = self.yaw_global + (self.imu_yaw - self.yaw_old)
+					self.count = self.count + 1
+					print("imu in")
 					
 				yaw_odom = yaw_reg % 6.28318
 				
-				# if abs(yaw_odom - self.yaw_global) > 0.5:
-				# print("jump "+ str(abs(yaw_odom - self.yaw_global)))
-				
-				# except:
-				# print("failed fitting")
 			else:
 				yaw_reg = self.imu_yaw
 			
@@ -244,13 +227,18 @@ class wheel_odom_conv:
 			tvx = ( sin( (theta_fl + theta_fr)/2.0 ) + sin( (theta_rl + theta_rr)/2.0 ) )/2.0 * (v + self.last_v)/2.0
 			tvy =  ( cos( (theta_fl + theta_fr)/2.0 ) + cos( (theta_rl + theta_rr)/2.0 ) )/2.0 * (v + self.last_v)/2.0
 			
-			vx = (tvx*cos(yaw_odom) + tvy*cos(yaw_odom) )
-			vy = (tvx*sin(yaw_odom) + tvy*sin(yaw_odom) )
+			vx1 = (tvx*cos(yaw_odom) + tvy*cos(yaw_odom) )
+			vy1 = (tvx*sin(yaw_odom) + tvy*sin(yaw_odom) )
+			
+			vx = (v + self.last_v)/2.0 * cos(yaw_odom)
+			vy = (v + self.last_v)/2.0 * sin(yaw_odom)
+			
+			t_now = time.time()
 			
 			self.x_global = self.x_global + vx*abs(t_now - self.last_t)
 			self.y_global = self.y_global + vy*abs(t_now - self.last_t)
 			
-			self.last_t = time.time()
+			self.last_t = t_now
 			# self.last_omega = omega
 			self.last_v = v
 			
@@ -385,6 +373,11 @@ class wheel_odom_conv:
 		
 		self.imu_yaw = euler[2]
 		
+		if self.yaw_first == 0:
+			self.yaw_first = self.imu_yaw
+		
+		self.imu_yaw = self.imu_yaw - self.yaw_first
+		
 		self.msg_state[5] = 1
 		if sum(self.msg_state) < 6:
 			return
@@ -398,7 +391,12 @@ class wheel_odom_conv:
 	def call_back_est(self, msg):
 		self.point_x.append(msg.pose.pose.position.x)
 		self.point_y.append(msg.pose.pose.position.y)
-		
+		quaternion = [msg.pose.pose.orientation.x, 
+					  msg.pose.pose.orientation.y, 
+					  msg.pose.pose.orientation.z, 
+					  msg.pose.pose.orientation.w]
+		euler = euler_from_quaternion(quaternion)
+		self.est_yaw = euler[2]
 		
 	def compute_odom(self):
 		

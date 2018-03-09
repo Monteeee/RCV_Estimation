@@ -126,20 +126,20 @@ def listener(topic_list, N):
 					ax2.plot(data_list1[k][-1], data_list2[k][-1], marker=marker_list[k], markerfacecolor='b', markersize=10.0)
 					arrow_l = sqrt(abs(data_list1[k][0] - data_list1[k][-1])**2 +  abs(data_list2[k][0] - data_list2[k][-1])**2)/10.0
 					if k == 0:   # estimated
-						arrow_x = arrow_l * cos(data_list6[k][-1] + 3.14159265359/2.0)
-						arrow_y = arrow_l * sin(data_list6[k][-1] + 3.14159265359/2.0)
+						arrow_x = arrow_l * cos(data_list6[k][-1])
+						arrow_y = arrow_l * sin(data_list6[k][-1])
 						ax2.arrow(data_list1[0][-1], data_list2[0][-1], arrow_x, arrow_y, head_width=arrow_l/3.0, head_length=arrow_l/10.0, fc='k', ec='k')
+					
+					elif k == 2:   # regression yaw
+						arrow_x = arrow_l * cos(data_list6[k][-1])
+						arrow_y = arrow_l * sin(data_list6[k][-1])
+						ax2.arrow(data_list1[0][-1], data_list2[0][-1], arrow_x, arrow_y, head_width=arrow_l/3.0, head_length=arrow_l/10.0, fc='b', ec='b')
 						
 						speed = sqrt(data_list3[k][-1]**2 + data_list4[k][-1]**2)
 						arrow_x = arrow_l * data_list3[k][-1] / speed
 						arrow_y = arrow_l * data_list4[k][-1] / speed
 						ax2.arrow(data_list1[0][-1], data_list2[0][-1], arrow_x, arrow_y, head_width=arrow_l/3.0, head_length=arrow_l/10.0, fc='y', ec='y')
-						
-						
-					elif k == 2:   # regression yaw
-						arrow_x = arrow_l * cos(data_list6[k][-1])
-						arrow_y = arrow_l * sin(data_list6[k][-1])
-						ax2.arrow(data_list1[0][-1], data_list2[0][-1], arrow_x, arrow_y, head_width=arrow_l/3.0, head_length=arrow_l/10.0, fc='b', ec='b')
+					
 					elif k == 3:   # imu yaw
 						arrow_x = arrow_l * cos(data_list6[k][-1])
 						arrow_y = arrow_l * sin(data_list6[k][-1])
