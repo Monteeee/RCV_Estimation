@@ -21,14 +21,15 @@ if __name__ == '__main__':
 	dire_path = '/home/el2425/catkin_ws2/src/rcv_estimation/gps_show/scripts/'
 	
 	# ############# the record file you want to use ####################
-	file_number = 29
+	file_number = 37
 	record_file_name = 'record_with_yaw_' + str(file_number) + '.pkl'
 	
 	f = open(dire_path + record_file_name, 'rb')
 	x_list, y_list, vx_list, vy_list, yawrate_list, yaw_list = pickle.load(f)
 	f.close()
+	print len(yaw_list)
 	
-	N = 4
+	N = len(x_list)
 	
 	handle = range(N)
 	labels = ['ros_ekf', 'gps_xsens', 'gps_trimble', 'dspace_ekf'] 
@@ -54,6 +55,49 @@ if __name__ == '__main__':
 	height = float(height)
 	
 	if verbose_draw_fit == 1:
+		
+		print len(x_list[1])
+		start = 0
+		step = 5
+		end = 150
+		sm = []
+		for increment in xrange(0, end-start, step):
+			upper = start + increment + step
+			lower = upper - 10
+		
+			r_x = np.array(x_list[1][lower:upper])
+			r_y = np.array(y_list[1][lower:upper])
+	
+			dr_x = np.diff(r_x)
+			dr_y = np.diff(r_y)
+			
+			dr = np.divide(dr_y, dr_x)
+			
+			# print(dr_x)
+			# print(dr_y)
+			
+			# sm_x = np.std(dr_x) / np.mean(dr_x)
+			# sm_y = np.std(dr_y) / np.mean(dr_y)
+			
+			print np.std(dr_x), np.mean(dr_x)
+			# sm.append( np.sqrt(np.square(sm_x) + np.square(sm_y)) )
+			sm.append(np.std(dr)/abs(np.mean(dr)))
+			try:
+				po, pc = curve_fit(reg_func, r_x, r_y)
+				error = LA.norm(reg_func(r_x, *po) - r_y)
+				
+				print("regression error "+str(error))
+				plt.figure(1)
+				plt.plot(r_x, r_y, 'b-', label='data')
+				plt.plot(r_x, reg_func(r_x, *po), 'r-', label='fit')
+
+			except:
+				print("regression failed")
+		plt.figure(2)
+		plt.plot(np.linspace(start, end, len(sm)), sm)
+		plt.show()
+		
+		"""
 		print len(x_list[0])
 		print len(y_list[0])
 		
@@ -118,7 +162,7 @@ if __name__ == '__main__':
 				plt.arrow(reg_test_x[-1], reg_test_y[-1], arrow_x, arrow_y, head_width=arrow_l/2.0, head_length=arrow_l/5.0, fc='b', ec='b')
 						
 			plt.legend()
-		
+		"""
 		#if popt[0] > 0.01:
 			#print np.divide(np.sqrt(np.diag(np.fabs(pcov))), np.power(popt, 2))
 		#else:
@@ -146,8 +190,8 @@ if __name__ == '__main__':
 
 		# ax2.imshow(img, zorder=0, extent=[left, right, bottom, top])
 
-		for k in [0, 2]:
-			print(len(x_list[k]))
+		for k in [0, 1, 2]:
+			# print(len(x_list[k]))
 			
 			ax2.plot(x_list[k], y_list[k], color=color_list[k], lw=1.0)
 			ax2.plot(x_list[k][0], y_list[k][0], marker='o', markerfacecolor='r', markersize=10.0)
@@ -196,8 +240,9 @@ if __name__ == '__main__':
 		fig6 = plt.figure(6)
 		ax7 = fig6.add_axes([0.1, 0.1, 0.8, 0.8])
 		
-		for k in [0, 2, 3]:
+		for k in [0, 2]:
 			# t_list = np.linspace(0.0, 100.0, len(yaw_list[k]))
+			print (yaw_list[k])
 			t_list = range(len(yaw_list[k]))
 			if k == 0 or k == 2:
 				handle[k] = ax7.plot(t_list, np.array(yaw_list[k]), color=color_list[k], marker=marker_list[k], label='yaw '+labels[k], lw=1.0, markersize=msize)

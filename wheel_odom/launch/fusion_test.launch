@@ -1,11 +1,16 @@
 <launch>
+	<arg name="with_plot" default="true" />
+	<arg name="playbag" default="false" />
+	<arg name="bagfilename" default="short_with_circles.bag" />
 	<!-- ########### play bag file ############# -->
-	<node pkg="rosbag" type="play" name="player" args="--clock -r 1 /home/el2425/catkin_ws2/src/bagfiles/short_with_circles.bag"/>
+	<group if="$(arg playbag)">
+   	  <node pkg="rosbag" type="play" name="player" args="--clock -r 1 /home/el2425/catkin_ws2/src/bagfiles/$(arg bagfilename) /odometry/filtered:=/odometry/filtered2"/>
+  	</group>	
 
 	<!-- ############# run gps convert, currently just used to label trimble data with frame_id ################ -->
 	<node pkg="wheel_odom" type="xsens_gps_convert.py" name="xsens_gps_convert" output="screen">
-          <rosparam param="/xsens_gps_cov">[2.5, 0.0, 0.0,
-                                            0.0, 2.5, 0.0,
+          <rosparam param="/xsens_gps_cov">[2.0, 0.0, 0.0,
+                                            0.0, 2.0, 0.0,
                                             0.0, 0.0, 0.2]</rosparam>
 	</node> 
 	<!-- #############  ############### -->
@@ -40,8 +45,8 @@
 	<!-- ############## run wheel odometry who uses imu.yaw as heading ############### -->
 	<node pkg="wheel_odom" type="wheel_odometry.py" name="wheel_odometry" output="screen">
           <!-- x y z theta_x, theta_y, theta_z -->
-          <rosparam param="/wheel_pose_cov">[0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 
-                                            0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 
+          <rosparam param="/wheel_pose_cov">[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.5, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 
@@ -174,12 +179,13 @@
     <!-- ############# run the odometry plotting node ############### -->
 	<!-- ### OBS only topics of odometries who share the same frame can be corretly plotted together  ### -->
 
+    <group if="$(arg with_plot)">
     <node pkg="gps_show" type="gps_show.py" name="gps_show" output="screen" >
-      <rosparam param="/odom_topic_list">['/odometry/filtered',
+      <rosparam param="/odom_topic_list">['/odometry/filtered2',
                                           '/odometry/gps',
                                           '/odom_test',
                                           '/communication/dspace/rcv_odom']</rosparam>
     </node>
-
+    </group>
 
 </launch>

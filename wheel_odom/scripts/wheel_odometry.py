@@ -59,11 +59,11 @@ class wheel_odom_conv:
 		
 		self.init_flag = True
 		
-		self.sub_fl_str_ = rospy.Subscriber("/communication/dspace/flwheel_steering", Float32, self.cb1, queue_size=1)
-		self.sub_fr_str_ = rospy.Subscriber("/communication/dspace/frwheel_steering", Float32, self.cb2, queue_size=1)
-		self.sub_rl_str_ = rospy.Subscriber("/communication/dspace/rlwheel_steering", Float32, self.cb3, queue_size=1)
-		self.sub_rr_str_ = rospy.Subscriber("/communication/dspace/rrwheel_steering", Float32, self.cb4, queue_size=1)
-		self.sub_avg_vel_ = rospy.Subscriber("/communication/dspace/avg_speed", Float32, self.cb5, queue_size=1)
+		# self.sub_fl_str_ = rospy.Subscriber("/communication/dspace/flwheel_steering", Float32, self.cb1, queue_size=1)
+		# self.sub_fr_str_ = rospy.Subscriber("/communication/dspace/frwheel_steering", Float32, self.cb2, queue_size=1)
+		# self.sub_rl_str_ = rospy.Subscriber("/communication/dspace/rlwheel_steering", Float32, self.cb3, queue_size=1)
+		# self.sub_rr_str_ = rospy.Subscriber("/communication/dspace/rrwheel_steering", Float32, self.cb4, queue_size=1)
+		# self.sub_avg_vel_ = rospy.Subscriber("/communication/dspace/avg_speed", Float32, self.cb5, queue_size=1)
 		# self.sub_curv = rospy.Subscriber("/communication/dspace/curvature", Float32, self.cb6, queue_size=1)
 		self.sub_yaw = rospy.Subscriber("/communication/dspace/imu", Imu, self.cb6, queue_size=1)
 		self.sub_est = rospy.Subscriber("/odometry/filtered", Odometry, self.call_back_est, queue_size=1)
@@ -164,7 +164,7 @@ class wheel_odom_conv:
 				yaw_odom = self.est_yaw
 				
 			yaw_reg = self.yaw_global
-			if len(self.point_x) > 100:
+			if len(self.point_x) > 15:
 				
 				# try:
 				reg_x = np.array(self.point_x[-15:])
@@ -180,7 +180,7 @@ class wheel_odom_conv:
 				# #### this error might need to be normalized #####				
 								
 				
-				print str(error)
+				# print str(error)
 				
 				if error < 0.3 and self.count >= 5:
 					
@@ -208,15 +208,18 @@ class wheel_odom_conv:
 								#self.angle_buffer = []
 					
 					self.count = 0
-					print("regression in")
+					# print("regression in")
 				else:
 					# print("error" + str(error))
 					yaw_reg = self.yaw_global + (self.imu_yaw - self.yaw_old)	
 					# print("error" + str(error))
 					self.count = self.count + 1
-					print("imu in")
-					
-				yaw_odom = yaw_reg % 6.28318
+					# print("imu in")
+				if v > 0.1:
+					yaw_odom = yaw_reg % 6.28318
+				else:
+					#print("not moving, angle kept constant")
+					yaw_odom = yaw_odom
 				
 			else:
 				yaw_reg = self.imu_yaw
@@ -300,7 +303,7 @@ class wheel_odom_conv:
 			
 			return [self.x_global, self.y_global, self.yaw_global]
 	
-	
+	"""
 	def cb1(self, msg):
 		
 		# print "rec 1"
@@ -360,6 +363,7 @@ class wheel_odom_conv:
 			return
 		else:
 			self.compute_odom()
+	"""
 	
 	def cb6(self, msg):
 		self.time_stamp = msg.header.stamp
@@ -385,7 +389,16 @@ class wheel_odom_conv:
 			self.compute_odom()
 	
 	def callback(self, msg):
-		wheel_data = msg.data
+		self.avg_vel = msg.data[1]
+		self.fl_str = msg.data[2]
+		self.fr_str = msg.data[3]
+		self.rl_str = msg.data[4]
+		self.rr_str = msg.data[5]
+		self.msg_state[0] = 5
+		if sum(self.msg_state) < 6:
+			return
+		else:
+			self.compute_odom()
 		
 		
 	def call_back_est(self, msg):
